@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     try:
         logger.info("Starting MCP server...")
-        # Server direkt starten ohne asyncio.run()
         mcp.run()
     except KeyboardInterrupt:
         logger.info("Server shutdown requested")
