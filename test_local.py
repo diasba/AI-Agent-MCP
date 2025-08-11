@@ -1,36 +1,54 @@
+# test_functional_tool.py
+import pytest
 from tool import fetch_products_impl, Params
 
-print("\n🔹 Test 1: Triangle (mit 'type:' Präfix)")
-result = fetch_products_impl(Params(page=1, filter="type:Triangle"))
-for p in result:
-    print(p)
+@pytest.mark.parametrize("filter_input, expected_filter", [
+    ("type:Triangle", "triangle"),
+    ("Triangle", "triangle"),
+    ("  Hexagon ", "hexagon"),
+    ("Available", "available"),
+    ("filter:Square", "square"),
+    (None, None),
+    ("UnknownShape", None),  # invalid -> ignored
+])
+def test_filters_and_prints(filter_input, expected_filter, capsys):
+    params = Params(page=1, filter=filter_input)
+    result = fetch_products_impl(params)
+    captured = capsys.readouterr()
 
-print("\n🔹 Test 2: Triangle (ohne Präfix)")
-result = fetch_products_impl(Params(page=1, filter="Triangle"))
-for p in result:
-    print(p)
+    # Prüfe DEBUG-Ausgabe
+    debug_line = captured.out.splitlines()[0]
+    if expected_filter:
+        assert f"'filter': '{expected_filter}'" in debug_line
+    else:
+        assert "'filter'" not in debug_line
 
-print("\n🔹 Test 3: Hexagon (mit Leerzeichen)")
-result = fetch_products_impl(Params(page=1, filter="  Hexagon "))
-for p in result:
-    print(p)
+    # Ergebnisse validieren
+    # Kein Filter -> <=10 Produkte
+    if expected_filter is None:
+        assert len(result) <= 10
+    else:
+        assert len(result) > 0
+        if expected_filter == "triangle":
+            assert all(p.type == "Triangle" for p in result)
+        elif expected_filter == "hexagon":
+            assert all(p.type == "Hexagon" for p in result)
+        elif expected_filter == "square":
+            assert all(p.type == "Square" for p in result)
+        elif expected_filter == "available":
+            assert all(p.available for p in result)
 
-print("\n🔹 Test 4: Available (als Wert)")
-result = fetch_products_impl(Params(page=1, filter="Available"))
-for p in result:
-    print(p)
+@pytest.mark.parametrize("spoken, normalized", [
+    ("Dreiecke", "triangle"),
+    ("Kreise", "circle"),
+    ("verfügbar", "available"),
+])
+def test_normalize_german_synonyms(spoken, normalized, capsys):
+    params = Params(page=1, filter=spoken)
+    result = fetch_products_impl(params)
+    captured = capsys.readouterr()
 
-print("\n🔹 Test 5: Square (mit 'filter:' statt 'type:')")
-result = fetch_products_impl(Params(page=1, filter="filter:Square"))
-for p in result:
-    print(p)
+    debug_line = captured.out.splitlines()[0]
+    assert f"'filter': '{normalized}'" in debug_line
+    assert len(result) > 0
 
-print("\n🔹 Test 6: Kein Filter (alle Produkte)")
-result = fetch_products_impl(Params(page=1))
-for p in result:
-    print(p)
-
-print("\n🔹 Test 7: Ungültiger Filter (erwarte leere Liste)")
-result = fetch_products_impl(Params(page=1, filter="UnknownShape"))
-for p in result:
-    print(p)
