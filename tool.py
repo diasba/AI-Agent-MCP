@@ -45,26 +45,37 @@ def normalize_filter(raw_filter: str) -> Optional[str]:
 def fetch_products(params: Params) -> List[Product]:
     """
     Retrieve products from the C24 mock API.
-    - Use 'filter' to narrow results: 'circle' | 'triangle' | 'square' | 'hexagon' | 'available'
-    - Examples:
-        * "Show only available products" -> filter="available"
-        * "Please show me products of type Triangle" -> filter="triangle"
-        * "Bitte nur Dreiecke" -> filter="triangle"
+    Supports pagination over all pages if params.page == 0 (special case).
     """
     url = "https://3fcbdd45-930d-4a02-b0af-a2ab64be67c0.mock.pstmn.io/products"
-    query = {"page": params.page, "limit": 10}
-    if params.filter:
-        api_filter = normalize_filter(params.filter)
-        if api_filter:
-            query["filter"] = api_filter
-        else:
-            print(f"[WARN] Ungültiger Filter '{params.filter}', es wird ohne Filter geladen.")
-    print(f"[DEBUG] API Request: {query}")
-    try:
+    limit = 10
+    results: List[Product] = []
+    seen_ids = set()
+
+    def load_page(page: int):
+        query = {"page": page, "limit": limit}
+        if params.filter:
+            api_filter = normalize_filter(params.filter)
+            if api_filter:
+                query["filter"] = api_filter
+            else:
+                print(f"[WARN] Ungültiger Filter '{params.filter}', es wird ohne Filter geladen.")
+        print(f"[DEBUG] API Request: {query}")
         r = requests.get(url, params=query, timeout=10)
         r.raise_for_status()
-        products_raw = r.json().get("products", [])
-        return [Product(**p) for p in products_raw]
-    except Exception as e:
-        print(f"[ERROR] {e}")
-        return [Product(id=0, name=f"ERROR: {str(e)}", type="none", available=False)]
+        data = r.json()
+        for p in data.get("products", []):
+            if p["id"] not in seen_ids:
+                results.append(Product(**p))
+                seen_ids.add(p["id"])
+        return data.get("pagination", {}).get("next_page")
+
+    if params.page == 0:
+        # 0 = alle Seiten laden
+        page = 1
+        while page is not None:
+            page = load_page(page)
+    else:
+        load_page(params.page)
+
+    return results
