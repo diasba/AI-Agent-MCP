@@ -2,8 +2,13 @@ from pydantic import BaseModel, Field
 from fastmcp import FastMCP
 import requests
 from typing import Optional, List
+from datetime import datetime, timezone
 
 mcp = FastMCP("C24 Product Tool")
+
+class Price(BaseModel):
+    value: float
+    currency: str
 
 class Product(BaseModel):
     id: int
@@ -11,8 +16,22 @@ class Product(BaseModel):
     type: str
     available: bool
 
+    # optionale Zusatzfelder aus API
+    color: Optional[str] = None
+    imageURL: Optional[str] = None
+    colorCode: Optional[str] = None
+    releaseDate: Optional[int] = None
+    releaseDate_iso: Optional[str] = None
+    description: Optional[str] = None
+    longDescription: Optional[str] = None
+    rating: Optional[float] = None
+    price: Optional[Price] = None
+
+    class Config:
+        extra = "ignore"
+
 class Params(BaseModel):
-    page: int = Field(1, description="Page index (1-based).")
+    page: int = Field(1, description="Page index (1-based). Use 0 to load ALL pages.")
     filter: Optional[str] = Field(
         None,
         description=(
@@ -24,10 +43,10 @@ class Params(BaseModel):
 
 FILTER_MAPPING = {
     # en
-    "circle":"circle","triangle":"triangle","square":"square","hexagon":"hexagon","available":"available",
+    "circle": "circle", "triangle": "triangle", "square": "square", "hexagon": "hexagon", "available": "available",
     # de
-    "kreis":"circle","kreise":"circle","dreieck":"triangle","dreiecke":"triangle",
-    "quadrat":"square","quadrate":"square","sechseck":"hexagon","sechsecke":"hexagon","verfügbar":"available"
+    "kreis": "circle", "kreise": "circle", "dreieck": "triangle", "dreiecke": "triangle",
+    "quadrat": "square", "quadrate": "square", "sechseck": "hexagon", "sechsecke": "hexagon", "verfügbar": "available"
 }
 
 def normalize_filter(raw_filter: str) -> Optional[str]:
@@ -40,6 +59,15 @@ def normalize_filter(raw_filter: str) -> Optional[str]:
     mapped = [FILTER_MAPPING.get(p) for p in parts]
     mapped = [m for m in mapped if m]
     return ",".join(mapped) if mapped else None
+
+def _augment_product_dict(p: dict) -> dict:
+    ts = p.get("releaseDate")
+    if isinstance(ts, (int, float)):
+        try:
+            p["releaseDate_iso"] = datetime.fromtimestamp(int(ts), tz=timezone.utc).isoformat()
+        except Exception:
+            pass
+    return p
 
 @mcp.tool
 def fetch_products(params: Params) -> List[Product]:
@@ -66,7 +94,7 @@ def fetch_products(params: Params) -> List[Product]:
         data = r.json()
         for p in data.get("products", []):
             if p["id"] not in seen_ids:
-                results.append(Product(**p))
+                results.append(Product(**_augment_product_dict(p)))
                 seen_ids.add(p["id"])
         return data.get("pagination", {}).get("next_page")
 
