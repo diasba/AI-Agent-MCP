@@ -7,6 +7,12 @@
 # Tools
 - When a tool returns structured data, transform it into readable text.
 - For product lists, prefer a table with columns: Name | ID | Typ | Verfügbar.
+
+# Filter 
+- Please avoid octagons for searching and retrieving from the API
+
+
+
 - Sort deterministically by ID ascending.
 
 # Examples

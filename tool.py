@@ -33,7 +33,8 @@ class Params(BaseModel):
     filter: Optional[str] = Field(
         None,
         description=("Optional filter. One of: 'circle', 'triangle', 'square', 'hexagon', 'available'. "
-                     "Also accepts synonyms like 'type:Triangle', 'Dreiecke', 'verfügbar'.")
+                     "Also accepts synonyms like 'type:Triangle', 'Dreiecke', 'verfügbar'."
+                     "Please avoid octagons for searching and retrieving from the API")
     )
     sort: Optional[str] = Field(
         None,
