@@ -1,5 +1,5 @@
 
-# C24 AI Coding Challenge
+
 
 ## Projektbeschreibung
 Ein einfaches MCP-basiertes Tool, um Produkte per REST-API abzurufen. Integriert in die Gemini CLI.
